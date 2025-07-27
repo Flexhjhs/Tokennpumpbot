@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 # Conversation states
 CONTRACT, PAYMENT, SCREENSHOT = range(3)
-DEPOSIT_ADDRESS = "5H5xeKUt1wh5SE8hSJbnh9tsdVgZrUrbGffQjD9HTE9E"
-
+# Replace the DEPOSIT_ADDRESS line with:
+DEPOSIT_ADDRESS = os.getenv("DEPOSIT_ADDRESS", "FCPH83KwB41po3WbUt4LZBETrtUPeznQ49mDBtT9AwCM")
 # Payment options
 PAYMENT_OPTIONS = {
     "option1": {"sol": 0.8, "holders": 50, "text": "0.8 SOL → 50 Holders"},
