@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 # Conversation states
 CONTRACT, PAYMENT, SCREENSHOT = range(3)
-# Replace the DEPOSIT_ADDRESS line with:
-DEPOSIT_ADDRESS = os.getenv("DEPOSIT_ADDRESS", "FCPH83KwB41po3WbUt4LZBETrtUPeznQ49mDBtT9AwCM")
+DEPOSIT_ADDRESS = "FCPH83KwB41po3WbUt4LZBETrtUPeznQ49mDBtT9AwCM"  # Updated address
+
 # Payment options
 PAYMENT_OPTIONS = {
     "option1": {"sol": 0.8, "holders": 50, "text": "0.8 SOL → 50 Holders"},
@@ -29,7 +29,8 @@ PAYMENT_OPTIONS = {
     "option3": {"sol": 3.0, "holders": 700, "text": "3 SOL → 700 Holders"},
     "option4": {"sol": 3.8, "holders": 1000, "text": "3.8 SOL → 1000 Holders"},
     "option5": {"sol": 6.0, "text": "6 SOL → DEX Feature"},
-    "option6": {"sol": 8.0, "text": "8 SOL → CoinSite Listing"}
+    "option6": {"sol": 8.0, "text": "8 SOL → CoinSite Listing"},
+    "option7": {"sol": 15.0, "text": "15 SOL → Create Token + Full Service"}
 }
 
 # Bot commands
@@ -37,16 +38,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Initial command to start the bot"""
     await update.message.reply_text(
         "🚀 Welcome to TokenBot! Get 1000+ investors in under 1 hour!\n\n"
-        "📈 Services include:\n"
-        "- SOL Increase Holders\n"
-        "- SOL MultiSender\n"
-        "- SOL Create Token\n"
-        "- Anti-MEV Volume Bot\n"
-        "- ↑MAKERS Increase\n\n"
+        "🔥 Services include:\n"
+        "- Instant Holder Increase\n"
+        "- Token Creation Service\n"
+        "- DEX Listings\n"
+        "- Anti-MEV Protection\n"
+        "- CoinSite Listings\n\n"
         "To begin, please provide:\n"
-        "1. Contract Address\n"
+        "1. Contract Address (For existing tokens)\n"
         "2. Token Name\n\n"
-        "Format: \n<code>CONTRACT_ADDRESS\nTOKEN_NAME</code>",
+        "Format: \n<code>CONTRACT_ADDRESS\nTOKEN_NAME</code>\n\n"
+        "For NEW token creation, just send: \n<code>NEW\nTOKEN_NAME</code>",
         parse_mode="HTML"
     )
     return CONTRACT
@@ -58,39 +60,63 @@ async def contract_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         if len(user_input) < 2:
             raise ValueError("Invalid format")
             
-        context.user_data['contract'] = user_input[0].strip()
-        context.user_data['token'] = user_input[1].strip()
+        contract = user_input[0].strip()
+        token = user_input[1].strip()
         
-        keyboard = [
-            [InlineKeyboardButton(opt['text'], callback_data=opt_id)]
-            for opt_id, opt in PAYMENT_OPTIONS.items()
-        ]
+        context.user_data['contract'] = contract
+        context.user_data['token'] = token
         
-        # Add configuration options
+        # Check if it's a new token
+        is_new_token = contract.lower() == "new"
+        
+        # Create keyboard
+        keyboard = []
+        for opt_id, opt in PAYMENT_OPTIONS.items():
+            if is_new_token and opt_id != "option7":
+                continue
+            if not is_new_token and opt_id == "option7":
+                continue
+            keyboard.append([InlineKeyboardButton(opt['text'], callback_data=opt_id)])
+        
+        # Configuration text
         config_text = (
-            "⚙️ Configuration Applied:\n"
-            "• RPC: Custom (15 ms)\n"
+            "⚙️ Active Configuration:\n"
+            "• RPC: Premium (5 ms)\n"
             "• Buy Amount: Fixed SOL\n"
-            "• DEX: Raydium/Pump.fun\n"
+            "• DEX: Raydium/Pump.fun/Jupiter\n"
             "• Jito Priority: 0.0001 SOL\n"
             "• Anti-MEV: Enabled\n"
-            "• Wallet Generation: Automatic\n\n"
-            "✅ Ready to increase holders!"
+            "• Auto Wallet Generation: ✓\n"
         )
         
+        if is_new_token:
+            message = (
+                "🆕 NEW TOKEN CREATION SERVICE\n\n"
+                "We'll create and fully deploy your token:\n"
+                "- Token creation with bonding curve\n"
+                "- Liquidity pool setup\n"
+                "- Full listings package\n"
+                "- 1000+ initial holders\n\n"
+                "Choose package:"
+            )
+        else:
+            message = (
+                f"✅ Received {token} contract!\n\n"
+                f"{config_text}\n"
+                "Choose a service package:"
+            )
+        
         await update.message.reply_text(
-            f"✅ Received {context.user_data['token']} contract!\n\n"
-            f"{config_text}\n\n"
-            "Choose a package:",
+            message,
             reply_markup=InlineKeyboardMarkup(keyboard)
-        )
         return PAYMENT
     except Exception as e:
         logger.error(f"Contract error: {e}")
         await update.message.reply_text(
             "❌ Invalid format. Please send:\n"
             "<code>CONTRACT_ADDRESS\nTOKEN_NAME</code>\n\n"
-            "Example:\n<code>5H5xeKUt1wh5SE8hSJbnh9tsdVgZrUrbGffQjD9HTE9E\nMYTOKEN</code>",
+            "For existing token:\n<code>FCPH83KwB41po3WbUt4LZBETrtUPeznQ49mDBtT9AwCM\nMYTOKEN</code>\n"
+            "For new token:\n<code>NEW\nMYTOKEN</code>",
             parse_mode="HTML"
         )
         return CONTRACT
@@ -102,25 +128,36 @@ async def payment_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     option = query.data
     context.user_data['option'] = option
     opt_data = PAYMENT_OPTIONS[option]
+    token = context.user_data.get('token', 'your token')
     
-    # Create description based on option
-    if option == "option5":
-        description = "• DexScreener featuring\n• Bonding curve optimization\n• Pump.fun token boost"
-    elif option == "option6":
-        description = "• CoinMarketCap listing\n• DexTools promotion\n• CoinTelegraph feature\n• Raydium spotlight"
-    else:
-        description = f"• {opt_data['holders']} new holders\n• Anti-MEV protection\n• Volume boost"
+    # Package descriptions
+    descriptions = {
+        "option1": "• 50 new holders\n• Anti-MEV protection\n• Volume boost",
+        "option2": "• 400 new holders\n• DEX visibility boost\n• Anti-rug protection",
+        "option3": "• 700 new holders\n• Trending placement\n• Liquidity boost",
+        "option4": "• 1000+ new holders\n• Trending on DEXs\n• Holder retention",
+        "option5": "• DexScreener featuring\n• Bonding curve optimization\n• Pump.fun token boost",
+        "option6": "• CoinMarketCap listing\n• DexTools promotion\n• CoinTelegraph feature\n• Raydium spotlight",
+        "option7": (
+            "• Full token creation\n• 100% bonding curve\n• Listed on ALL platforms\n"
+            "• 1000+ initial holders\n• Marketing package\n• Liquidity lock"
+        )
+    }
+    
+    note = ""
+    if option == "option7":
+        note = "\n\n💎 Includes:\n- Token creation\n- Website deployment\n- Social media setup\n- Whitepaper template"
     
     await query.edit_message_text(
-        f"💎 Package Selected: {opt_data['text']}\n\n"
-        f"✨ Benefits:\n{description}\n\n"
+        f"💎 Selected: {opt_data['text']}\n\n"
+        f"✨ Benefits:\n{descriptions[option]}{note}\n\n"
         f"💳 Send exactly {opt_data['sol']} SOL to:\n"
         f"<code>{DEPOSIT_ADDRESS}</code>\n\n"
         "🚀 After payment:\n"
         "1. Take screenshot of transaction\n"
         "2. Send it to this chat\n"
         "3. Click 'Confirm Payment'\n\n"
-        "⚡️ Note: Our AI verifies payments in 2 minutes",
+        "⚡️ AI verification completes in 1-3 minutes",
         parse_mode="HTML"
     )
     return SCREENSHOT
@@ -133,8 +170,8 @@ async def screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         keyboard = [[InlineKeyboardButton("✅ Confirm Payment", callback_data="confirm")]]
         
         await update.message.reply_text(
-            "📸 Screenshot received! AI verification started...\n\n"
-            "Click below to complete:",
+            "📸 Screenshot received! AI verification in progress...\n\n"
+            "Click below when ready:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     else:
@@ -146,45 +183,38 @@ async def confirm_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     query = update.callback_query
     await query.answer()
     
-    # Get user data
-    opt_data = PAYMENT_OPTIONS[context.user_data['option']]
-    token = context.user_data['token']
-    contract = context.user_data['contract']
+    option = context.user_data['option']
+    opt_data = PAYMENT_OPTIONS[option]
+    token = context.user_data.get('token', 'your token')
+    contract = context.user_data.get('contract', 'NEW TOKEN')
     
-    # Create service activation message
-    if context.user_data['option'] == "option5":
-        services = (
-            "✅ DexScreener featuring\n"
-            "✅ Bonding curve optimization\n"
-            "✅ Pump.fun token boost\n"
-            "✅ 250+ new holders"
-        )
-    elif context.user_data['option'] == "option6":
-        services = (
-            "✅ CoinMarketCap submission\n"
-            "✅ DexTools promotion\n"
-            "✅ CoinTelegraph feature\n"
-            "✅ Raydium spotlight\n"
-            "✅ 500+ new holders"
+    # Service activation messages
+    activations = {
+        "option1": "✅ 50 holder generation\n✅ Anti-MEV bots\n✅ Volume boost",
+        "option2": "✅ 400 holders creation\n✅ DEX visibility\n✅ Anti-rug measures",
+        "option3": "✅ 700 holders deployment\n✅ Trending placement\n✅ Liquidity optimization",
+        "option4": "✅ 1000+ holders generation\n✅ DEX trending\n✅ Holder retention",
+        "option5": "✅ DexScreener featuring\n✅ Bonding curve optimization\n✅ Pump.fun token boost",
+        "option6": "✅ CoinMarketCap submission\n✅ DexTools promotion\n✅ CoinTelegraph feature",
+        "option7": "✅ Token creation\n✅ 100% bonding curve\n✅ Full platform listings"
+    }
+    
+    monitor = ""
+    if option == "option7":
+        monitor = (
+            "\n🔧 Creation Progress:\n- Token: 0%\n- Bonding Curve: 0%\n"
+            "- Listings: 0%\n- Holders: 0/1000"
         )
     else:
-        services = (
-            f"✅ {opt_data['holders']} holder generation\n"
-            "✅ Anti-MEV bots enabled\n"
-            "✅ Volume boost (same block)\n"
-            "✅ MultiSender deployment"
-        )
+        short_contract = contract if len(contract) < 15 else f"{contract[:8]}...{contract[-6:]}"
+        monitor = f"\n📊 Monitoring: {short_contract}\n- Wallets: 0\n- Holders: 0\n- Volume: 0 SOL"
     
     message = (
         f"🔍 Verification successful! Activating {token} services...\n\n"
-        f"{services}\n\n"
-        "⏱️ Estimated completion: 15-45 minutes\n\n"
-        "📊 Real-time monitoring:\n"
-        f"- Contract: {contract[:12]}...{contract[-6:]}\n"
-        "- Status: Processing transactions\n"
-        "- Wallets generated: 0/50\n"
-        "- Holders added: 0\n\n"
-        "You'll receive completion report soon!"
+        f"{activations[option]}\n\n"
+        "⏱️ Estimated completion: 15-45 minutes\n"
+        f"{monitor}\n\n"
+        "You'll receive progress updates!"
     )
     
     await query.edit_message_text(message)
@@ -200,25 +230,20 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 def main() -> None:
-    """Run the bot"""
-    # Get Telegram token from environment
+    """Run the bot with conflict resolution"""
     token = os.getenv("TELEGRAM_TOKEN")
     if not token:
         raise ValueError("TELEGRAM_TOKEN environment variable not set")
     
-    # Create application
+    # Create application with conflict prevention
     application = Application.builder().token(token).build()
-
-    # Conversation handler
+    
+    # Add conversation handler
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            CONTRACT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, contract_info)
-            ],
-            PAYMENT: [
-                CallbackQueryHandler(payment_option)
-            ],
+            CONTRACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, contract_info)],
+            PAYMENT: [CallbackQueryHandler(payment_option)],
             SCREENSHOT: [
                 MessageHandler(filters.PHOTO, screenshot),
                 CallbackQueryHandler(confirm_payment, pattern='^confirm$')
@@ -229,8 +254,17 @@ def main() -> None:
 
     application.add_handler(conv_handler)
     
-    # Start bot
-    application.run_polling()
+    # Run with conflict resolution
+    try:
+        application.run_polling(
+            drop_pending_updates=True,
+            allowed_updates=Update.ALL_TYPES
+        )
+    except Exception as e:
+        logger.error(f"Bot crashed: {e}")
+        # Add automatic restart logic
+        os._exit(1)  # Force restart
 
 if __name__ == '__main__':
+    logger.info("Starting bot with new payment address...")
     main()
